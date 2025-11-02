@@ -1,6 +1,0 @@
-[submodule "backends/cis525_backend"]
-	path = backends/cis525_backend
-	url = https://github.com/dkshitij29/cis525_backend.git
-[submodule "backends/ai_itinerary_generator"]
-	path = backends/ai_itinerary_generator
-	url = https://github.com/dkshitij29/CIS_525-AI_Powered_Itinerary_Generator.git

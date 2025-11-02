@@ -1,39 +1,130 @@
-import React from 'react'
-import { Routes, Route, useLocation } from 'react-router-dom'
-import NavBar from './components/NavBar.jsx'
-import Landing from './pages/Landing.jsx'
-import Login from './pages/Login.jsx'
-import Signup from './pages/Signup.jsx'
-import Dashboard from './pages/Dashboard.jsx'
-import ItineraryList from './pages/ItineraryList.jsx'
-import ItineraryDetail from './pages/ItineraryDetail.jsx'
-import NewItinerary from './pages/NewItinerary.jsx'
-import Profile from './pages/Profile.jsx'
-import ProtectedRoute from './components/ProtectedRoute.jsx'
-import useBarba from './hooks/useBarba.js'
+import { useState, useEffect } from "react";
+import Form from "./Form";
+import LoginPage from "./LoginPage";
+import SignUpPage from "./SignUpPage";
+import ItineraryListPage from "./ItineraryListPage";
 
+export default function App() {
+  // State for the currently authenticated user's email
+  const [currentUserEmail, setCurrentUserEmail] = useState(null);
+  
+  // State for the current view: 'login', 'signup', 'form', or 'list'
+  const [currentView, setCurrentView] = useState('login'); 
+  
+  // State to hold data when viewing a saved itinerary
+  const [currentItineraryData, setCurrentItineraryData] = useState(null); 
 
-export default function App(){
-const location = useLocation()
-useBarba(location.pathname)
-return (
-<div id="barba-wrapper" data-barba="wrapper">
-<NavBar />
-<main className="container mt-6" data-barba="container" data-barba-namespace={location.pathname}>
-<Routes location={location} key={location.pathname}>
-<Route index element={<Landing/>} />
-<Route path="/login" element={<Login/>} />
-<Route path="/signup" element={<Signup/>} />
-<Route element={<ProtectedRoute/>}>
-<Route path="/dashboard" element={<Dashboard/>} />
-<Route path="/itineraries" element={<ItineraryList/>} />
-<Route path="/itineraries/new" element={<NewItinerary/>} />
-<Route path="/itineraries/:id" element={<ItineraryDetail/>} />
-<Route path="/profile" element={<Profile/>} />
-</Route>
-<Route path="*" element={<Landing/>} />
-</Routes>
-</main>
-</div>
-)
+  // --- Session Persistence ---
+  useEffect(() => {
+    // Check local storage for a previously saved session
+    const storedEmail = localStorage.getItem('userEmail');
+    if (storedEmail) {
+      setCurrentUserEmail(storedEmail);
+      setCurrentView('list'); // Default to list view after login/load
+    }
+  }, []);
+
+  // --- Authentication Handlers ---
+
+  const handleLoginSuccess = (customerId, email) => {
+    // Save email to state and local storage for persistence
+    setCurrentUserEmail(email);
+    localStorage.setItem('userEmail', email);
+    
+    // Switch to the list of saved itineraries
+    setCurrentView('list'); 
+    console.log(`User ${email} logged in successfully. ID: ${customerId}`);
+  };
+
+  const handleLogout = () => {
+    // Clear state and local storage
+    setCurrentUserEmail(null);
+    localStorage.removeItem('userEmail');
+    
+    // Reset view and any viewing data
+    setCurrentView('login');
+    setCurrentItineraryData(null); 
+  };
+
+  // --- Itinerary Handlers ---
+
+  // Function to load saved itinerary data for viewing in the Form component
+  const viewSavedItinerary = (data) => {
+      setCurrentItineraryData(data); // Set the full data object
+      setCurrentView('form'); // Switch to the form view
+  }
+
+  // --- Rendering Logic ---
+
+  const renderContent = () => {
+    // Header component displayed when logged in (list or form view)
+    const Header = () => (
+      <div style={{ textAlign: 'right', padding: '10px 20px', backgroundColor: '#f4f4f4', borderBottom: '1px solid #ddd' }}>
+          
+          <button 
+            onClick={() => {
+                setCurrentItineraryData(null); // Clear old data
+                setCurrentView(currentView === 'form' ? 'list' : 'form');
+            }} 
+            style={{ padding: '8px 15px', background: '#6c757d', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', marginRight: '10px' }}
+          >
+            {currentView === 'form' ? 'View Saved Itineraries' : '+ Generate New Itinerary'}
+          </button>
+
+          <span style={{ marginRight: '20px', fontWeight: 'bold' }}>Logged in as: {currentUserEmail}</span>
+          
+          <button onClick={handleLogout} style={{ padding: '8px 15px', background: '#dc3545', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>
+            Logout
+          </button>
+      </div>
+    );
+
+    switch (currentView) {
+      case 'signup':
+        return <SignUpPage switchToLogin={() => setCurrentView('login')} />;
+
+      case 'login':
+        return (
+          <LoginPage 
+            onLoginSuccess={handleLoginSuccess} 
+            switchToSignup={() => setCurrentView('signup')} 
+          />
+        );
+
+      case 'list':
+        return (
+          <>
+            <Header />
+            <ItineraryListPage 
+                userEmail={currentUserEmail} 
+                switchToForm={() => {
+                    setCurrentItineraryData(null); // Clear old data when switching to new form
+                    setCurrentView('form');
+                }}
+                viewItinerary={viewSavedItinerary} 
+            />
+          </>
+        );
+        
+      case 'form':
+        return (
+          <>
+            <Header />
+            <Form 
+                userEmail={currentUserEmail} 
+                initialItineraryData={currentItineraryData}
+            /> 
+          </>
+        );
+
+      default:
+        return <LoginPage onLoginSuccess={handleLoginSuccess} switchToSignup={() => setCurrentView('signup')} />;
+    }
+  };
+
+  return (
+    <div className="App">
+      {renderContent()}
+    </div>
+  );
 }
